@@ -20,6 +20,10 @@ cat <<EOF > test.db
 record(longout, "ival") {
     field(VAL, "42")
 }
+record(waveform, "aval") {
+    field(FTVL, "SHORT")
+    field(NELM, "5")
+}
 EOF
 
 "$SOFTIOC" -d test.db

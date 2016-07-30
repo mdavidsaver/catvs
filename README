@@ -15,6 +15,10 @@ Server must provide the following PVs
  type DBR_LONG count 1 R/W access
  initial value '42'
 
+'aval'
+ type DBR_SHORT count 5 R/W access
+ initial size 5, values zeros
+
 Server must not provide the following PVs
 
 'invalid'
