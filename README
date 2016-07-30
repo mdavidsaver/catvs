@@ -1,0 +1,20 @@
+
+
+Run w/ IOC
+
+SOFTIOC=/usr/bin/softIoc DUT=./wrapioc.sh python -m unittest discover -s catvs/server/ -t .
+
+
+
+Server tests spec.
+
+Server must provide the following PVs
+
+'ival'
+
+ type DBR_LONG count 1 R/W access
+ initial value '42'
+
+Server must not provide the following PVs
+
+'invalid'
