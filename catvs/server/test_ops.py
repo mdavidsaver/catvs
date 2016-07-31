@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import unittest, socket, logging
+from struct import unpack
 from ..util import TestClient, Msg
 
 _log = logging.getLogger(__name__)
@@ -62,7 +63,22 @@ class TestScalar(TestClient, unittest.TestCase):
         # Note P1 in reply is a CA status code (1==ok)
         self.assertCAEqual(rep, cmd=15, dtype=5, dcnt=1, p1=1, p2=ioid)
 
-        self.assertEqual(rep.body[:4], '\0\0\0\x2a')
+        self.assertEqual(unpack('!i',rep.body[:4]), (0x2a,))
+
+    def test_get_convert(self):
+        'Get LONG as DOUBLE'
+        self.openChan()
+        ioid = 1102
+
+        self.sendTCP([
+            Msg(cmd=15, dtype=2, dcnt=1, p1=self.sid, p2=ioid),
+        ])
+
+        rep = self.recvTCP()
+        # Note P1 in reply is a CA status code (1==ok)
+        self.assertCAEqual(rep, cmd=15, dtype=2, dcnt=1, p1=1, p2=ioid)
+
+        self.assertEqual(unpack('!f',rep.body[:4]), (float(0x2a),))
 
     def test_put(self):
         self.openChan()
@@ -76,7 +92,7 @@ class TestScalar(TestClient, unittest.TestCase):
         # Note P1 in reply is a CA status code (1==ok)
         self.assertCAEqual(rep, cmd=15, dtype=5, dcnt=1, p1=1, p2=ioid)
 
-        self.assertEqual(rep.body[:4], '\0\0\0\x2b')
+        self.assertEqual(unpack('!i',rep.body[:4]), (0x2b,))
 
     def test_put_callback(self):
         self.openChan()

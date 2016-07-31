@@ -5,8 +5,8 @@ Created on Sat Jul 30 13:04:26 2016
 @author: mdavidsaver
 """
 
-import os, time, errno
-import socket, logging
+import sys, os, time, errno, signal, threading
+import socket, logging, shutil
 from struct import Struct
 
 _log = logging.getLogger(__name__)
@@ -16,8 +16,57 @@ __all__ = [
     'TestMixinUDP',
     'TestMixinClient',
     'TestMixinServer',
-    'TestMixinRunDUT',
+    'TestMixinRunServer',
 ]
+
+class TempDir(object):
+    def __init__(self):
+        self.dir = None
+        self.open()
+    def open(self):
+        from tempfile import mkdtemp
+        if not self.dir:
+            self.dir = mkdtemp()
+    def close(self):
+        if self.dir:
+            shutil.rmtree(self.dir)
+            self.dir = None
+    def __enter__(self):
+        self.open()
+        return self
+    def __exit__(self,A,B,C):
+        self.close()
+    def __del__(self):
+        self.close()
+
+class SpamThread(threading.Thread):
+    def __init__(self, fd):
+        threading.Thread.__init__(self)
+        self._pr, self._pw = os.pipe()
+        self.fd = fd
+    def join(self):
+        os.write(self._pw, ' ')
+        ret = threading.Thread.join(self)
+        os.close(self._pr)
+        os.close(self._pw)
+        return ret
+    def run(self):
+        import select
+        while True:
+            R, W, X = select.select([self._pr, self.fd], [], [])
+            if self.fd in R:
+                try:
+                    B = os.read(self.fd, 1024)
+                except OSError as e:
+                    # can get EIO if the child has already
+                    # terminated.
+                    if e.errno==errno.EIO:
+                        return
+                    raise
+                if len(B):
+                    sys.stdout.write(B)
+            if self._pr in R:
+                break
 
 class Msg(object):
     'A CA message'
@@ -180,14 +229,34 @@ class TestMixinClient(TestMixinUDP):
         S.settimeout(self.timeout)
         self.sess = S
 
-class TestMixinRunDUT(object):
+class TestMixinRunServer(object):
     testport = None
     testname = None
     dut = None
     def setUp(self):
         if self.testport is None:
             import random
-            self.testport = random.randint(7890, 7899)
+            if 'TESTPORT' in os.environ:
+                self.testport = int(os.environ['TESTPORT'])
+            else:
+                self.testport = random.randint(7890, 7899)
+
+        # lousy hack num. 1
+        # check to see that the TCP port where we will run the server
+        # is unused.
+        for i in range(10):
+            try:
+                ST = socket.create_connection(('127.0.0.1', self.testport), timeout=0.1)
+                ST.close()
+                if i==9:
+                    self.fail("Another server is already running on port %d"%self.testport)
+                else:
+                    time.sleep(0.2)
+            except socket.timeout:
+                break
+            except socket.error as e:
+                self.assertEqual(e.errno, errno.ECONNREFUSED)
+                break
 
         env = os.environ.copy()
         env.update({
@@ -204,21 +273,36 @@ class TestMixinRunDUT(object):
         if self.dut is None:
             self.dut = os.environ['DUT']
 
-        from tempfile import TemporaryFile
-        from subprocess import Popen, PIPE, STDOUT
+        self.TDIR = TempDir()
+        tdir = self.TDIR.dir
 
-        self.SP_cap = TemporaryFile() # capture stdout and stderr
+        self._child, self._child_fd = os.forkpty()
+        if self._child==0:
+            os.chdir(tdir)
+            try:
+                os.execve('/bin/sh', ['/bin/sh','-c',self.dut], env)
+            finally:
+                os.abort() # never reached (we hope)
 
-        self.SP = Popen(self.dut, shell=True, env=env,
-                        stdin=PIPE, stderr=STDOUT, stdout=self.SP_cap)
+        # lousy hack num. 1.5
+        # can't just dup() our stdout to child since
+        # some test runners (nose) capture "stdout"
+        # by replacing sys.stdout with StringIO
+        # So we start a child thread to echo
+        # to sys.stdout
+        self.SP = SpamThread(fd=self._child_fd)
+        self.SP.start()
+
         self.addCleanup(self._stop_dut)
 
+        # lousy hack num. 2
         # wait for CA server startup
         ST = None
         for i in range(20):
             time.sleep(0.1)
             try:
                 ST = socket.create_connection(('127.0.0.1', self.testport), timeout=0.1)
+                break
             except socket.timeout:
                 continue
             except socket.error as e:
@@ -227,9 +311,7 @@ class TestMixinRunDUT(object):
                 continue
             except:
                 raise
-            break
         if ST is None:
-            self.SP.kill()
             self.fail("timeout waiting for DUT to start TCP server")
         ST.close()
 
@@ -237,26 +319,44 @@ class TestMixinRunDUT(object):
         pass # placeholder
 
     def _stop_dut(self):
-        self.SP.terminate()
+        os.kill(self._child, signal.SIGKILL)
+        os.waitpid(self._child, 0)
+        self.SP.join()
+        try:
+            os.close(self._child_fd)
+        except:
+            pass
+        #os.close(self._child_fd)
+        self.TDIR.close()
+        return
+
+        os.kill(self._child, signal.SIGTERM)
+        ret = None
         for i in range(10):
+            try:
+                pid, ret, _rusg = os.wait3(os.WNOHANG)
+                #assert self._child==pid, (self._child, pid)
+                break
+            except OSError as e:
+                if e.errno!=errno.ECHILD:
+                    raise
             if self.SP.poll() is not None:
                 break
             time.sleep(0.1)
-        if self.SP.returncode is None:
+        if ret is None:
             _log.warn("Killed '%s'", self.dut)
-            self.SP.kill()
-            self.SP.wait()
-        self.SP.wait()
-        time.sleep(0.1) # kludge to wait for IOC errlog to flush...
-        self.SP_cap.seek(0)
-        _log.info(self.SP_cap.read())
-        self.SP_cap.close()
+            os.kill(self._child, signal.SIGKILL)
+            os.wait()
+
+        os.close(self._child_fd)
+
+        self.TDIR.close()
         #self.assertEqual(self.SP.returncode, 0)
 
-class TestClient(TestMixinClient, TestMixinRunDUT):
+class TestClient(TestMixinClient, TestMixinRunServer):
     def setUp(self):
-        TestMixinRunDUT.setUp(self)
+        TestMixinRunServer.setUp(self)
         TestMixinClient.setUp(self)
     def tearDown(self):
-        TestMixinRunDUT.tearDown(self)
+        TestMixinRunServer.tearDown(self)
         TestMixinClient.tearDown(self)

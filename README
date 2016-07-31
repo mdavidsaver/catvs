@@ -4,6 +4,9 @@ Run w/ IOC
 
 SOFTIOC=/usr/bin/softIoc DUT=./wrapioc.sh python -m unittest discover -s catvs/server/ -t .
 
+or
+
+SOFTIOC=/usr/bin/softIoc DUT=./wrapioc.sh nosetests catvs.server
 
 
 Server tests spec.
