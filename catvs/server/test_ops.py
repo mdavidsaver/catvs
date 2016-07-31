@@ -249,7 +249,12 @@ class TestArray(TestClient, unittest.TestCase):
 
         rep = self.recvTCP()
         # Note P1 in reply is a CA status code (1==ok)
-        self.assertCAEqual(rep, cmd=15, dtype=1, dcnt=0, p1=1, p2=ioid)
+        self.assertCAEqual(rep, cmd=15, dtype=1, p1=1, p2=ioid)
+        if self.sver<13:
+            self.assertEqual(rep.dcnt, 0)
+        else:
+            self.assertTrue(rep.dcnt==0 or rep.dcnt==5,
+                            'Not real or fake dynamic array length. (%d)'%rep.dcnt)
         # RSRV returns a body w/ 8 bytes, not sure what this is?
 
     def test_put(self):

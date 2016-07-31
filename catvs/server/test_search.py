@@ -81,10 +81,15 @@ class TestSearchTCP(TestClient, unittest.TestCase):
 
         rep = self.recvTCP()
 
-        self.assertCAEqual(rep, cmd=6, dtype=self.testport, dcnt=0, p2=searchid)
+        self.assertCAEqual(rep, cmd=6, dcnt=0, p2=searchid)
         # TCP search reply doesn't include a version number in the payload
         self.assertTrue(rep.p1==0xffffffff or rep.p1==0x7f000001,
                         "P1 unknown %08x"%rep.p1)
+
+        if rep.p1!=0xffffffff:
+            self.assertEqual(rep.dtype, self.testport)
+        else:
+            pass # PCAS returns dtype (port) 0 here, not sure if it should
 
     def test_tcplookup_err1(self):
         'TCP lookup of non-existant w/o reply'
@@ -161,10 +166,15 @@ class TestSearchTCP(TestClient, unittest.TestCase):
 
         rep = self.recvTCP()
 
-        self.assertCAEqual(rep, cmd=6, dtype=self.testport, dcnt=0, p2=searchid)
+        self.assertCAEqual(rep, cmd=6, dcnt=0, p2=searchid)
         # TCP search reply doesn't include a version number in the payload
         self.assertTrue(rep.p1==0xffffffff or rep.p1==0x7f000001,
                         "P1 unknown %08x"%rep.p1)
+
+        if rep.p1!=0xffffffff:
+            self.assertEqual(rep.dtype, self.testport)
+        else:
+            pass # PCAS returns dtype (port) 0 here, not sure if it should
 
 if __name__=='__main__':
     if 'LOGLEVEL' in os.environ:
