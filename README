@@ -8,6 +8,11 @@ or
 
 SOFTIOC=/usr/bin/softIoc DUT=./wrapioc.sh nosetests catvs.server
 
+Run w/ PCAS
+
+DUT=$PWD/pcastest/bin/linux-x86_64/pcas nosetests catvs.server
+
+
 
 Server tests spec.
 
