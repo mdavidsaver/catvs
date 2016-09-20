@@ -19,8 +19,10 @@
 # Build settings that are NOT module paths should appear in a
 # CONFIG_SITE file.
 
-TEMPLATE_TOP=$(EPICS_BASE)/templates/makeBaseApp/top
+#TEMPLATE_TOP=$(EPICS_BASE)/templates/makeBaseApp/top
 
 # EPICS_BASE usually appears last so other apps can override stuff:
 #EPICS_BASE=/usr/lib/epics
-EPICS_BASE=/home/mdavidsaver/work.bnl/epics/git
+
+-include $(TOP)/../RELEASE.local
+-include $(TOP)/configure/RELEASE.local
