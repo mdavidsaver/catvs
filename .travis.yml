@@ -1,0 +1,15 @@
+sudo: false
+language: c
+addons:
+  apt:
+    packages:
+      - python-nose
+env:
+ - BASE=3.14
+ - BASE=3.15
+ - BASE=3.16
+install: ./build-deps.sh
+script:
+ - . ./env; SOFTIOC=$EPICS_BASE/bin/linux-x86_64/softIoc DUT=$PWD/wrapioc.sh nosetests catvs.server
+ - make -C pcastest
+ - DUT=$PWD/pcastest/bin/linux-x86_64/pcas nosetests catvs.server
