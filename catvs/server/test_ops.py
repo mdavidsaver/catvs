@@ -240,7 +240,7 @@ class TestArray(TestClient, unittest.TestCase):
         self.assertCAEqual(rep, size=8, cmd=15, dtype=1, dcnt=1, p1=1, p2=ioid)
 
     def test_get_zero(self):
-        self.openChan()
+        self.openChan(cver=11) # no dynamic array support
         ioid = 1102
 
         self.sendTCP([
@@ -249,12 +249,38 @@ class TestArray(TestClient, unittest.TestCase):
 
         rep = self.recvTCP()
         # Note P1 in reply is a CA status code (1==ok)
-        self.assertCAEqual(rep, cmd=15, dtype=1, p1=1, p2=ioid)
-        if self.sver<13:
-            self.assertEqual(rep.dcnt, 0)
+        # reply may either ok w/ length zero or error ECA_BADCOUNT
+        self.assertCAEqual(rep, cmd=15, dtype=1, p2=ioid)
+        if rep.p1==1 and rep.dcnt==0: # RSRV does this
+            pass
+        elif rep.p1>>3==22: # PCAS does this
+            pass
         else:
-            self.assertTrue(rep.dcnt==0 or rep.dcnt==5,
-                            'Not real or fake dynamic array length. (%d)'%rep.dcnt)
+            self.fail("No match %s", rep)
+        # RSRV returns a body w/ 8 bytes, not sure what this is?
+
+    def test_get_zero_dynamic(self):
+        self.openChan(cver=13)
+        ioid = 1102
+
+        self.sendTCP([
+            Msg(cmd=15, dtype=1, dcnt=0, p1=self.sid, p2=ioid),
+        ])
+
+        rep = self.recvTCP()
+        # Note P1 in reply is a CA status code (1==ok)
+        self.assertCAEqual(rep, cmd=15, dtype=1, p2=ioid)
+        if self.sver>=13:
+            # Server support dynamic array size
+            self.assertCAEqual(rep, p1=1)
+            if rep.dcnt not in (0,5):
+                self.fail("Bad count %s"%rep)
+        elif rep.p1==1 and rep.dcnt==0: # RSRV does this
+            pass
+        elif rep.p1>>3==22: # PCAS does this
+            pass
+        else:
+            self.fail("No match %s"%rep)
         # RSRV returns a body w/ 8 bytes, not sure what this is?
 
     def test_put(self):
