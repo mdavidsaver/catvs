@@ -232,6 +232,11 @@ int main(int argc, char *argv[])
     }catch(std::exception& e){
         std::cerr<<"Error: "<<e.what()<<"\n";
         return 1;
+    }catch(int i){
+        char buf[64];
+        errSymLookup(i, buf, sizeof(buf));
+        std::cerr<<"Error Code: "<<buf<<"\n";
+        return 1;
     }catch(...){
         std::cerr<<"Unknown Error\n";
         return 2;
