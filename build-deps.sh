@@ -4,7 +4,8 @@ set -e -x
 # Build base for use with https://travis-ci.org
 #
 # Set environment variables
-# BASE= 3.14 3.15 or 3.16  (VCS branch)
+# BRANCH= 3.14 3.15 or 3.16  (VCS branch)
+# REPO=
 # STATIC=  static or shared
 
 die() {
@@ -12,16 +13,29 @@ die() {
   exit 1
 }
 
-[ "$BASE" ] || die "Set BASE"
+[ "$BRANCH" ] || die "Set BRANCH"
+[ "$REPO" ] || die "Set REPO"
 
-CDIR="$HOME/.cache/base-$BASE-$STATIC"
+git clone --quiet --depth 10 --branch $BRANCH https://github.com/$REPO/epics-base.git "$HOME/.source/base"
 
-if [ ! -e "$CDIR/built" ]
+HEAD=`cd "$HOME/.source/base" && git log -n1 --pretty=format:%H`
+echo "HEAD revision $HEAD"
+
+CDIR="$HOME/.cache/base-$REPO-$BRANCH-$STATIC"
+EPICS_BASE="$CDIR/base"
+
+[ -d install ] || install -d "$CDIR"
+touch "$CDIR/built"
+
+BUILT=`cat $CDIR/built`
+echo "BUILT revision $BUILT"
+
+
+if [ "$HEAD" != "$BUILT" ]
 then
+  rm -rf "$CDIR"
   install -d "$CDIR"
-  ( cd "$CDIR" && git clone --depth 50 --branch $BASE https://github.com/epics-base/epics-base.git base )
-
-  EPICS_BASE="$CDIR/base"
+  mv "$HOME/.source/base" "$CDIR/base"
 
   case "$STATIC" in
   static)
@@ -29,16 +43,14 @@ then
 SHARED_LIBRARIES=NO
 STATIC_BUILD=YES
 EOF
-    ;;
+     ;;
   *) ;;
   esac
 
   make -C "$EPICS_BASE" -j2
 
-  touch "$CDIR/built"
+  echo "$HEAD" > "$CDIR/built"
 fi
-
-EPICS_HOST_ARCH=`sh $EPICS_BASE/startup/EpicsHostArch`
 
 echo "EPICS_BASE=$EPICS_BASE" > pcastest/configure/RELEASE.local
 
