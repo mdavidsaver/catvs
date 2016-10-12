@@ -1,6 +1,6 @@
 #!/bin/sh
 set -e
-date >> /tmp/foo
+
 die() {
     echo "$1" >&2
     exit 1
