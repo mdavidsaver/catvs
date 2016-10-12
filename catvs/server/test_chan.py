@@ -4,11 +4,6 @@ import unittest, socket, logging, os
 from ..util import TestClient, Msg
 
 class TestChannel(TestClient, unittest.TestCase):
-    DB = """
-    record(longout, "ival") {
-        field(VAL, "42")
-    }
-    """
     user = 'foo'
     host = socket.gethostname()
 

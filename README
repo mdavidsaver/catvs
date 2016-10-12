@@ -25,7 +25,7 @@ Server must provide the following PVs
 
 'aval'
  type DBR_SHORT count 5 R/W access
- initial size 5, values zeros
+ initial size 0 or 5, values are zeros is size!=0
 
 Server must not provide the following PVs
 
