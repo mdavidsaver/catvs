@@ -2,11 +2,11 @@
 
 Run w/ IOC
 
-SOFTIOC=/usr/bin/softIoc DUT=./wrapioc.sh python -m unittest discover -s catvs/server/ -t .
+SOFTIOC=/usr/bin/softIoc DUT=$PWD/wrapioc.sh python -m unittest discover -s catvs/server/ -t .
 
 or
 
-SOFTIOC=/usr/bin/softIoc DUT=./wrapioc.sh nosetests catvs.server
+SOFTIOC=/usr/bin/softIoc DUT=$PWD/wrapioc.sh nosetests catvs.server
 
 Run w/ PCAS
 

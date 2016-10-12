@@ -19,6 +19,37 @@ __all__ = [
     'TestMixinRunServer',
 ]
 
+_msgname = {
+    0 :'VERSION          ',
+    1 :'EVENT_ADD        ',
+    2 :'EVENT_CANCEL     ',
+    3 :'READ             ',
+    4 :'WRITE            ',
+    5 :'SNAPSHOT         ',
+    6 :'SEARCH           ',
+    7 :'BUILD            ',
+    8 :'EVENTS_ON        ',
+    9 :'EVENTS_OFF       ',
+    10:'READ_SYNC        ',
+    11:'ERROR            ',
+    12:'CLEAR_CHANNEL    ',
+    13:'RSRV_IS_IP       ',
+    14:'NOT_FOUND        ',
+    15:'READ_NOTIFY      ',
+    16:'READ_BUILD       ',
+    17:'REPEATER_CONFIRM ',
+    18:'CREATE_CHAN      ',
+    19:'WRITE_NOFITY     ',
+    20:'CLIENT_NAME      ',
+    21:'HOST_NAME        ',
+    22:'ACCESS_RIGHTS    ',
+    23:'ECHO             ',
+    24:'REPEATER_REGISTER',
+    25:'SIGNAL           ',
+    26:'CREATE_CH_FAIL   ',
+    27:'SERVER_DISCONN   ',
+}
+
 class TempDir(object):
     def __init__(self):
         self.dir = None
@@ -102,8 +133,11 @@ class Msg(object):
         return H+B
 
     def __str__(self):
+        S = vars(self)
+        S['cmdname']='%s(%2d)'%(_msgname.get(self.cmd, 'UNKNOWN'), self.cmd)
         self.size = len(self.body or '')
-        return 'Msg(cmd=%(cmd)d, size=%(size)d, dtype=%(dtype)d, dcnt=%(dcnt)d, p1=%(p1)d, p2=%(p2)d)'%vars(self)
+        S['body'] = self.body[:16] + ('...' if self.size>16 else '')
+        return 'Msg(cmd=%(cmdname)s, size=%(size)d, dtype=%(dtype)d, dcnt=%(dcnt)d, p1=%(p1)d, p2=%(p2)d, body="%(body)s")'%vars(self)
     __repr__ = __str__
 
 class TestMixinUDP(object):
