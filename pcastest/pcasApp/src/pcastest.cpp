@@ -26,6 +26,7 @@ struct mailbox : public casPV
     std::vector<T> value; // don't resize
     epicsUInt16 sevr, stat;
     epicsTime stamp;
+    unsigned count;
 
     struct gdd_ptr {
         gdd * const G;
@@ -50,6 +51,7 @@ struct mailbox : public casPV
         ,sevr(NO_ALARM)
         ,stat(NO_ALARM)
         ,stamp()
+        ,count(0)
     {
         stamp = epicsTime::getCurrent();
     }
@@ -102,7 +104,7 @@ struct mailbox : public casPV
                           value.end(),
                           buf);
                 V.putRef(buf, dtor);
-                V.setBound(0, 0, value.size()); // maybe unnecessary?
+                V.setBound(0, 0, this->count); // use element count
                 return 0;
             } else {
                 // assume V.bounds are <= our storage
@@ -150,8 +152,18 @@ struct mailbox : public casPV
             return S_cas_noConvert;
         }
 
+        // get array count
+        if (V.dimension() == 1) {
+            aitIndex first, count;
+            gddStatus gdd_status = V.getBound ( 0, first, count );
+            assert ( gdd_status == 0 );
+            if (count > value.size()) count = value.size(); // might not be necessary
+            this->count = count;
+        } else {
+            this->count = 1;
+        }
         // update value
-        V.outData(&value[0], sizeof(T)*value.size(), (aitEnum)type2ait<T>::value, aitLocalDataFormat);
+        V.outData(&value[0], sizeof(T)*this->count, (aitEnum)type2ait<T>::value, aitLocalDataFormat);
         // refresh timestamp
         stamp = epicsTime::getCurrent();
 
