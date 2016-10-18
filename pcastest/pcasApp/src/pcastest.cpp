@@ -1,8 +1,11 @@
+#define NOMINMAX 1 // avoid min() and max() macros from windows.h
+
 #include <iostream>
 #include <vector>
 #include <iterator>
 #include <memory>
 #include <limits>
+#include <string>
 
 #include "fdManager.h"
 #include "casdef.h"
