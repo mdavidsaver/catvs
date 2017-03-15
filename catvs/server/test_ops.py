@@ -300,6 +300,193 @@ class TestArray(TestClient, unittest.TestCase):
         self.assertCAEqual(rep, cmd=15, dtype=1, dcnt=2, p1=1, p2=ioid+1)
         self.assertEqual(rep.body, '\0\x2b\0\x2c\0\0\0\0')
 
+    def test_monitor_one_fixed(self):
+        self.openChan()
+        ioid = 1102
+        # subscribe
+        self.sendTCP([
+            Msg(cmd=1, dtype=5, dcnt=1, p1=self.sid, p2=ioid,
+                body=Msg._sub_body.pack(0.0, 0.0, 0.0, 1)), # DBE_VALUE
+        ])
+
+        # wait for initial update
+        rep = self.recvTCP()
+        # Note P1 in reply is a CA status code (1==ok)
+        self.assertCAEqual(rep, cmd=1, dtype=5, dcnt=1, p1=1, p2=ioid)
+
+        # RSRV weirdness.
+        # first element is undefined when NORD==0
+        # should be zero...
+        if rep.body[:2]!='\0\0':
+            _log.warn("RSRV weirdness, first element of empty array is undefined")
+        self.assertEqual(rep.body[2:4], '\0\0')
+        # should be self.assertEqual(rep.body[:4], '\0\0\0\0')
+
+        # Send Puts to trigger subscription updates
+        self.sendTCP([
+            Msg(cmd=4, dtype=5, dcnt=2, p1=self.sid, p2=1101, body='\0\0\0\x2a\0\0\0\x2d'),
+        ])
+        rep = self.recvTCP()
+        self.assertCAEqual(rep, cmd=1, dtype=5, dcnt=1, p1=1, p2=ioid)
+        self.assertEqual(rep.body[:4], '\0\0\0\x2a')
+
+        self.sendTCP([
+            Msg(cmd=4, dtype=1, dcnt=4, p1=self.sid, p2=1101, body='\0\x2b\0\x2c\0\x2d\0\x2e'),
+        ])
+        rep = self.recvTCP()
+        self.assertCAEqual(rep, cmd=1, dtype=5, dcnt=1, p1=1, p2=ioid)
+        self.assertEqual(rep.body[:4], '\0\0\0\x2b')
+
+        self.sendTCP([
+            Msg(cmd=4, dtype=1, dcnt=1, p1=self.sid, p2=1101, body='\0\x2c'),
+        ])
+        rep = self.recvTCP()
+        self.assertCAEqual(rep, cmd=1, dtype=5, dcnt=1, p1=1, p2=ioid)
+        self.assertEqual(rep.body[:4], '\0\0\0\x2c')
+
+        # cancel subscription
+        self.sendTCP([
+            Msg(cmd=2, dtype=5, dcnt=1, p1=self.sid, p2=ioid),
+        ])
+
+        # wait for confirmation
+        rep = self.recvTCP()
+        self.assertCAEqual(rep, cmd=1, dtype=5, dcnt=1, p1=self.sid, p2=ioid, size=0)
+
+    def test_monitor_three_fixed(self):
+        self.openChan()
+        ioid = 1102
+        # subscribe
+        self.sendTCP([
+            Msg(cmd=1, dtype=5, dcnt=3, p1=self.sid, p2=ioid,
+                body=Msg._sub_body.pack(0.0, 0.0, 0.0, 1)), # DBE_VALUE
+        ])
+
+        # wait for initial update
+        rep = self.recvTCP()
+        # Note P1 in reply is a CA status code (1==ok)
+        self.assertCAEqual(rep, cmd=1, dtype=5, dcnt=3, p1=1, p2=ioid)
+
+        # RSRV weirdness.
+        # first element is undefined when NORD==0
+        # should be zero...
+        if rep.body[:2]!='\0\0':
+            _log.warn("RSRV weirdness, first element of empty array is undefined")
+        self.assertEqual(rep.body[2:12], '\0'*10)
+        # should be self.assertEqual(rep.body[:12], '\0'*12)
+
+        # Send Puts to trigger subscription updates
+        self.sendTCP([
+            Msg(cmd=4, dtype=5, dcnt=2, p1=self.sid, p2=1101, body='\0\0\0\x2a\0\0\0\x2d'),
+        ])
+        rep = self.recvTCP()
+        self.assertCAEqual(rep, cmd=1, dtype=5, dcnt=3, p1=1, p2=ioid)
+        self.assertEqual(rep.body[:12], '\0\0\0\x2a\0\0\0\x2d\0\0\0\0')
+
+        self.sendTCP([
+            Msg(cmd=4, dtype=1, dcnt=4, p1=self.sid, p2=1101, body='\0\x2b\0\x2c\0\x2d\0\x2e'),
+        ])
+        rep = self.recvTCP()
+        self.assertCAEqual(rep, cmd=1, dtype=5, dcnt=3, p1=1, p2=ioid)
+        self.assertEqual(rep.body[:12], '\0\0\0\x2b\0\0\0\x2c\0\0\0\x2d')
+
+        self.sendTCP([
+            Msg(cmd=4, dtype=1, dcnt=1, p1=self.sid, p2=1101, body='\0\x2c'),
+        ])
+        rep = self.recvTCP()
+        self.assertCAEqual(rep, cmd=1, dtype=5, dcnt=3, p1=1, p2=ioid)
+        self.assertEqual(rep.body[:12], '\0\0\0\x2c' + '\0'*8)
+
+        # cancel subscription
+        self.sendTCP([
+            Msg(cmd=2, dtype=5, dcnt=3, p1=self.sid, p2=ioid),
+        ])
+
+        # wait for confirmation
+        rep = self.recvTCP()
+        self.assertCAEqual(rep, cmd=1, dtype=5, dcnt=3, p1=self.sid, p2=ioid, size=0)
+
+    def test_monitor_zero_dynamic(self):
+        self.openChan(cver=13)
+        ioid = 1102
+
+        # subscribe
+        self.sendTCP([
+            Msg(cmd=1, dtype=5, dcnt=0, p1=self.sid, p2=ioid,
+                body=Msg._sub_body.pack(0.0, 0.0, 0.0, 1)), # DBE_VALUE
+        ])
+
+        # wait for initial update
+        rep = self.recvTCP()
+        # Note P1 in reply is a CA status code (1==ok)
+        self.assertCAEqual(rep, cmd=1, dtype=5, dcnt=0, p1=1, p2=ioid)
+
+        # Send a Put to trigger a subscription update
+        self.sendTCP([
+            Msg(cmd=4, dtype=5, dcnt=2, p1=self.sid, p2=1101, body='\0\0\0\x2a\0\0\0\x2d'),
+        ])
+        rep = self.recvTCP()
+        # Note P1 in reply is a CA status code (1==ok)
+        self.assertCAEqual(rep, cmd=1, dtype=5, p2=ioid)
+        if self.sver>=13:
+            # Server support dynamic array size
+            self.assertCAEqual(rep, p1=1, dcnt=2)
+        elif rep.p1==1 and rep.dcnt==0: # RSRV does this
+            pass
+        elif rep.p1>>3==22: # PCAS does this
+            pass
+        else:
+            self.fail("No match %s"%rep)
+        self.assertEqual(rep.body[:8], '\0\0\0\x2a\0\0\0\x2d')
+
+        # Send a Put to trigger a subscription update
+        self.sendTCP([
+            Msg(cmd=4, dtype=1, dcnt=4, p1=self.sid, p2=1101, body='\0\x2b\0\x2c\0\x2d\0\x2e'),
+        ])
+        rep = self.recvTCP()
+        # Note P1 in reply is a CA status code (1==ok)
+        self.assertCAEqual(rep, cmd=1, dtype=5, p2=ioid)
+        if self.sver>=13:
+            # Server support dynamic array size
+            self.assertCAEqual(rep, p1=1, dcnt=4)
+        elif rep.p1==1 and rep.dcnt==0: # RSRV does this
+            pass
+        elif rep.p1>>3==22: # PCAS does this
+            pass
+        else:
+            self.fail("No match %s"%rep)
+        self.assertEqual(rep.body[:16], '\0\0\0\x2b\0\0\0\x2c\0\0\0\x2d\0\0\0\x2e')
+
+        # Send a Put to trigger a subscription update
+        self.sendTCP([
+            Msg(cmd=4, dtype=1, dcnt=1, p1=self.sid, p2=1101, body='\0\x2c'),
+        ])
+        rep = self.recvTCP()
+        # Note P1 in reply is a CA status code (1==ok)
+        self.assertCAEqual(rep, cmd=1, dtype=5, p2=ioid)
+        if self.sver>=13:
+            # Server support dynamic array size
+            self.assertCAEqual(rep, p1=1, dcnt=1)
+        elif rep.p1==1 and rep.dcnt==0: # RSRV does this
+            pass
+        elif rep.p1>>3==22: # PCAS does this
+            pass
+        else:
+            self.fail("No match %s"%rep)
+        self.assertEqual(rep.body[:4], '\0\0\0\x2c')
+
+        # cancel subscription
+        self.sendTCP([
+            Msg(cmd=2, dtype=5, dcnt=0, p1=self.sid, p2=ioid),
+        ])
+
+        # wait for confirmation
+        rep = self.recvTCP()
+        # Note P1 in reply is a CA status code (1==ok)
+
+        self.assertCAEqual(rep, cmd=1, dtype=5, dcnt=0, p1=self.sid, p2=ioid, size=0)
+
+
 if __name__=='__main__':
     import os
     if 'LOGLEVEL' in os.environ:
