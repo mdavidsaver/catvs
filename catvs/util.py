@@ -5,6 +5,7 @@ Created on Sat Jul 30 13:04:26 2016
 @author: mdavidsaver
 """
 
+from __future__ import print_function
 import sys, os, time, errno, signal, threading
 import socket, logging, shutil
 from struct import Struct
@@ -76,7 +77,7 @@ class SpamThread(threading.Thread):
         self._pr, self._pw = os.pipe()
         self.fd = fd
     def join(self):
-        os.write(self._pw, ' ')
+        os.write(self._pw, b' ')
         ret = threading.Thread.join(self)
         os.close(self._pr)
         os.close(self._pw)
@@ -95,7 +96,7 @@ class SpamThread(threading.Thread):
                         return
                     raise
                 if len(B):
-                    sys.stdout.write(B)
+                    print(B)
             if self._pr in R:
                 break
 
@@ -105,39 +106,40 @@ class Msg(object):
     _head_ext = Struct("!II")
     _sub_body = Struct("!fffH")
 
-    def __init__(self, **kws):
+    def __init__(self, body=b'', **kws):
         'Build CA message'
         self.cmd = self.size = self.dtype = self.dcnt = self.p1 = self.p2 = 0
-        self.body = kws.pop('body','')
+        self.body = body
         for K,V in kws.items():
             setattr(self, K, V)
         BL = len(self.body)
         if BL%8:
-            self.body = self.body + '\0'*(8-BL%8)
+            self.body = self.body + b'\0'*(8-BL%8)
         self.size = len(self.body)
         assert self.size%8==0, self.size
 
     @classmethod
-    def unpack(klass, bytes):
+    def unpack(klass, bytes_):
         'Unpack basic (short) CA header'
         I = klass()
-        I.cmd, I.size, I.dtype, I.dcnt, I.p1, I.p2 = klass._head.unpack(bytes[:klass._head.size])
-        bytes = bytes[klass._head.size:]
-        return I, bytes
+        I.cmd, I.size, I.dtype, I.dcnt, I.p1, I.p2 = klass._head.unpack(bytes_[:klass._head.size])
+        return I, bytes_[klass._head.size:]
 
     def pack(self):
         'Serialize CA message'
-        B = self.body or ''
+        B = self.body or b''
         self.size = len(B)
         H = self._head.pack(self.cmd, self.size, self.dtype, self.dcnt, self.p1, self.p2)
-        return H+B
+        return H + B
 
     def __str__(self):
         S = vars(self)
         S['cmdname']='%s(%2d)'%(_msgname.get(self.cmd, 'UNKNOWN'), self.cmd)
         self.size = len(self.body or '')
-        S['body'] = self.body[:16] + ('...' if self.size>16 else '')
-        return 'Msg(cmd=%(cmdname)s, size=%(size)d, dtype=%(dtype)d, dcnt=%(dcnt)d, p1=%(p1)d, p2=%(p2)d, body="%(body)s")'%vars(self)
+        S['body'] = self.body[:16] + (b'...' if self.size>16 else b'')
+        return ('Msg(cmd=%(cmdname)s, size=%(size)d, dtype=%(dtype)d, dcnt=%(dcnt)d, p1=%(p1)d, '
+                'p2=%(p2)d, body="%(body)s")' % S)
+
     __repr__ = __str__
 
 class TestMixinUDP(object):
@@ -179,7 +181,7 @@ class TestMixinUDP(object):
         _log.debug("udp <--")
         for M in msg:
             _log.debug("  %s", M)
-        pkt = ''.join([M.pack() for M in msg])
+        pkt = b''.join(M.pack() for M in msg)
         self.usock.sendto(pkt, ('127.0.0.1', self.testport))
 
     def ensureTCP(self, N):
@@ -188,7 +190,7 @@ class TestMixinUDP(object):
             B = self.sess.recv(1024)
             if len(B)==0:
                 break
-            self.rxbuf = self.rxbuf+B
+            self.rxbuf += B
 
     def recvTCP(self):
         'Recieve a single CA message from the TCP client'
@@ -208,7 +210,7 @@ class TestMixinUDP(object):
         assert self.sess is not None
         for pkt in msg:
             _log.debug("tcp <-- %s", pkt)
-        pkt = ''.join([M.pack() for M in msg])
+        pkt = b''.join(M.pack() for M in msg)
         self.sess.sendall(pkt)
 
     def closeTCP(self):
@@ -238,7 +240,7 @@ class TestMixinServer(TestMixinUDP):
         S.settimeout(self.timeout)
         self.server = S
         self.sess = None
-        self.rxbuf = ''
+        self.rxbuf = b''
         self._socks.extend(['server','sess'])
 
     def waitClient(self):
@@ -254,7 +256,7 @@ class TestMixinClient(TestMixinUDP):
     def setUp(self):
         TestMixinUDP.setUp(self)
         self.sess = None
-        self.rxbuf = ''
+        self.rxbuf = b''
 
     def connectTCP(self):
         peer = ('127.0.0.1', self.testport)
@@ -312,9 +314,10 @@ class TestMixinRunServer(object):
 
         self._child, self._child_fd = os.forkpty()
         if self._child==0:
+            # Child process
             os.chdir(tdir)
             try:
-                os.execve('/bin/sh', ['/bin/sh','-c',self.dut], env)
+                os.execve('/bin/sh', ['/bin/sh','-c', self.dut], env)
             finally:
                 os.abort() # never reached (we hope)
 

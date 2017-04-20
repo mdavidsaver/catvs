@@ -55,3 +55,6 @@ fi
 echo "EPICS_BASE=$EPICS_BASE" > pcastest/configure/RELEASE.local
 
 echo "EPICS_BASE=$EPICS_BASE" > env
+
+cat env
+cat pcastest/configure/RELEASE.local

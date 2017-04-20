@@ -8,7 +8,7 @@ die() {
 
 [ "$WRAPDEBUG" ] && set -x
 
-[ -x "$SOFTIOC" ] || die "Must set \$SOFTIOC to softIoc executable"
+[ -x "$SOFTIOC" ] || ((env |grep IOC) && die "Must set \$SOFTIOC to softIoc executable")
 
 cat <<EOF > test.db
 record(longout, "ival") {

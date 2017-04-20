@@ -4,8 +4,8 @@ import unittest, socket, logging, os
 from ..util import TestClient, Msg
 
 class TestChannel(TestClient, unittest.TestCase):
-    user = 'foo'
-    host = socket.gethostname()
+    user = b'foo'
+    host = socket.gethostname().encode('latin-1')
 
     def openCircuit(self, auth=True):
         'Open TCP connection and sent auth info'
@@ -38,7 +38,7 @@ class TestChannel(TestClient, unittest.TestCase):
         cid, sid = 156, None
 
         self.sendTCP([
-            Msg(cmd=18, p1=cid, p2=13, body='ival'),
+            Msg(cmd=18, p1=cid, p2=13, body=b'ival'),
         ])
 
         rep = self.recvTCP()
@@ -61,7 +61,7 @@ class TestChannel(TestClient, unittest.TestCase):
         cid = 156
 
         self.sendTCP([
-            Msg(cmd=18, p1=cid, p2=13, body='invalid'),
+            Msg(cmd=18, p1=cid, p2=13, body=b'invalid'),
         ])
 
         rep = self.recvTCP()

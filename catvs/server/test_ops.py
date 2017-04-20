@@ -8,8 +8,8 @@ _log = logging.getLogger(__name__)
 
 class TestScalar(TestClient, unittest.TestCase):
 
-    user = 'foo'
-    host = socket.gethostname()
+    user = b'foo'
+    host = socket.gethostname().encode('latin-1')
 
     def openChan(self):
         'Open TCP connection and create channel'
@@ -19,7 +19,7 @@ class TestScalar(TestClient, unittest.TestCase):
             Msg(cmd=0, dcnt=13),
             Msg(cmd=20, body=self.user),
             Msg(cmd=21, body=self.host),
-            Msg(cmd=18, p1=self.cid, p2=13, body='ival'),
+            Msg(cmd=18, p1=self.cid, p2=13, body=b'ival'),
         ])
 
         rep = self.recvTCP()
@@ -84,7 +84,7 @@ class TestScalar(TestClient, unittest.TestCase):
         self.openChan()
         ioid = 1102
         self.sendTCP([
-            Msg(cmd=4, dtype=5, dcnt=1, p1=self.sid, p2=1101, body='\0\0\0\x2b'),
+            Msg(cmd=4, dtype=5, dcnt=1, p1=self.sid, p2=1101, body=b'\0\0\0\x2b'),
             Msg(cmd=15, dtype=5, dcnt=1, p1=self.sid, p2=ioid),
         ])
 
@@ -97,7 +97,7 @@ class TestScalar(TestClient, unittest.TestCase):
     def test_put_callback(self):
         self.openChan()
         self.sendTCP([
-            Msg(cmd=19, dtype=5, dcnt=1, p1=self.sid, p2=1101, body='\0\0\0\x2c'),
+            Msg(cmd=19, dtype=5, dcnt=1, p1=self.sid, p2=1101, body=b'\0\0\0\x2c'),
         ])
 
         rep = self.recvTCP()
@@ -111,7 +111,7 @@ class TestScalar(TestClient, unittest.TestCase):
         # Note P1 in reply is a CA status code (1==ok)
         self.assertCAEqual(rep, cmd=15, dtype=5, dcnt=1, p1=1, p2=1102)
 
-        self.assertEqual(rep.body[:4], '\0\0\0\x2c')
+        self.assertEqual(rep.body[:4], b'\0\0\0\x2c')
 
     def test_monitor(self):
         self.openChan()
@@ -126,18 +126,18 @@ class TestScalar(TestClient, unittest.TestCase):
         rep = self.recvTCP()
         # Note P1 in reply is a CA status code (1==ok)
         self.assertCAEqual(rep, cmd=1, dtype=5, dcnt=1, p1=1, p2=ioid)
-        self.assertEqual(rep.body[:4], '\0\0\0\x2a')
+        self.assertEqual(rep.body[:4], b'\0\0\0\x2a')
 
         # Send a Put to trigger a subscription update
         self.sendTCP([
-            Msg(cmd=4, dtype=5, dcnt=1, p1=self.sid, p2=1101, body='\0\0\0\x2d'),
+            Msg(cmd=4, dtype=5, dcnt=1, p1=self.sid, p2=1101, body=b'\0\0\0\x2d'),
         ])
 
         # wait for update
         rep = self.recvTCP()
         # Note P1 in reply is a CA status code (1==ok)
         self.assertCAEqual(rep, cmd=1, dtype=5, dcnt=1, p1=1, p2=ioid)
-        self.assertEqual(rep.body[:4], '\0\0\0\x2d')
+        self.assertEqual(rep.body[:4], b'\0\0\0\x2d')
 
         # cancel subscription
         self.sendTCP([
@@ -153,8 +153,8 @@ class TestScalar(TestClient, unittest.TestCase):
 
 class TestArray(TestClient, unittest.TestCase):
 
-    user = 'foo'
-    host = socket.gethostname()
+    user = b'foo'
+    host = socket.gethostname().encode('latin-1')
 
     def openChan(self, cver=13):
         'Open TCP connection and create channel'
@@ -164,7 +164,7 @@ class TestArray(TestClient, unittest.TestCase):
             Msg(cmd=0, dcnt=cver),
             Msg(cmd=20, body=self.user),
             Msg(cmd=21, body=self.host),
-            Msg(cmd=18, p1=self.cid, p2=cver, body='aval'),
+            Msg(cmd=18, p1=self.cid, p2=cver, body=b'aval'),
         ])
 
         rep = self.recvTCP()
@@ -211,9 +211,9 @@ class TestArray(TestClient, unittest.TestCase):
         # RSRV weirdness.
         # first element is undefined when NORD==0
         # should be zero...
-        if rep.body[:2]!='\0\0':
+        if rep.body[:2]!=b'\0\0':
             _log.warn("RSRV weirdness, first element of empty array is undefined")
-        self.assertEqual(rep.body[2:], '\0'*14)
+        self.assertEqual(rep.body[2:], b'\0'*14)
 
     def test_get_some(self):
         self.openChan()
@@ -288,17 +288,17 @@ class TestArray(TestClient, unittest.TestCase):
         ioid = 1102
 
         self.sendTCP([
-            Msg(cmd=4, dtype=1, dcnt=2, p1=self.sid, p2=1101, body='\0\x2b\0\x2c'),
+            Msg(cmd=4, dtype=1, dcnt=2, p1=self.sid, p2=1101, body=b'\0\x2b\0\x2c'),
             Msg(cmd=15, dtype=1, dcnt=5, p1=self.sid, p2=ioid),
             Msg(cmd=15, dtype=1, dcnt=2, p1=self.sid, p2=ioid+1),
         ])
 
         rep = self.recvTCP()
         self.assertCAEqual(rep, cmd=15, dtype=1, dcnt=5, p1=1, p2=ioid)
-        self.assertEqual(rep.body, '\0\x2b\0\x2c\0\0\0\0\0\0\0\0\0\0\0\0')
+        self.assertEqual(rep.body, b'\0\x2b\0\x2c\0\0\0\0\0\0\0\0\0\0\0\0')
         rep = self.recvTCP()
         self.assertCAEqual(rep, cmd=15, dtype=1, dcnt=2, p1=1, p2=ioid+1)
-        self.assertEqual(rep.body, '\0\x2b\0\x2c\0\0\0\0')
+        self.assertEqual(rep.body, b'\0\x2b\0\x2c\0\0\0\0')
 
     def test_monitor_one_fixed(self):
         self.openChan()
@@ -317,32 +317,32 @@ class TestArray(TestClient, unittest.TestCase):
         # RSRV weirdness.
         # first element is undefined when NORD==0
         # should be zero...
-        if rep.body[:2]!='\0\0':
+        if rep.body[:2]!=b'\0\0':
             _log.warn("RSRV weirdness, first element of empty array is undefined")
-        self.assertEqual(rep.body[2:4], '\0\0')
-        # should be self.assertEqual(rep.body[:4], '\0\0\0\0')
+        self.assertEqual(rep.body[2:4], b'\0\0')
+        # should be self.assertEqual(rep.body[:4], b'\0\0\0\0')
 
         # Send Puts to trigger subscription updates
         self.sendTCP([
-            Msg(cmd=4, dtype=5, dcnt=2, p1=self.sid, p2=1101, body='\0\0\0\x2a\0\0\0\x2d'),
+            Msg(cmd=4, dtype=5, dcnt=2, p1=self.sid, p2=1101, body=b'\0\0\0\x2a\0\0\0\x2d'),
         ])
         rep = self.recvTCP()
         self.assertCAEqual(rep, cmd=1, dtype=5, dcnt=1, p1=1, p2=ioid)
-        self.assertEqual(rep.body[:4], '\0\0\0\x2a')
+        self.assertEqual(rep.body[:4], b'\0\0\0\x2a')
 
         self.sendTCP([
-            Msg(cmd=4, dtype=1, dcnt=4, p1=self.sid, p2=1101, body='\0\x2b\0\x2c\0\x2d\0\x2e'),
+            Msg(cmd=4, dtype=1, dcnt=4, p1=self.sid, p2=1101, body=b'\0\x2b\0\x2c\0\x2d\0\x2e'),
         ])
         rep = self.recvTCP()
         self.assertCAEqual(rep, cmd=1, dtype=5, dcnt=1, p1=1, p2=ioid)
-        self.assertEqual(rep.body[:4], '\0\0\0\x2b')
+        self.assertEqual(rep.body[:4], b'\0\0\0\x2b')
 
         self.sendTCP([
-            Msg(cmd=4, dtype=1, dcnt=1, p1=self.sid, p2=1101, body='\0\x2c'),
+            Msg(cmd=4, dtype=1, dcnt=1, p1=self.sid, p2=1101, body=b'\0\x2c'),
         ])
         rep = self.recvTCP()
         self.assertCAEqual(rep, cmd=1, dtype=5, dcnt=1, p1=1, p2=ioid)
-        self.assertEqual(rep.body[:4], '\0\0\0\x2c')
+        self.assertEqual(rep.body[:4], b'\0\0\0\x2c')
 
         # cancel subscription
         self.sendTCP([
@@ -370,32 +370,32 @@ class TestArray(TestClient, unittest.TestCase):
         # RSRV weirdness.
         # first element is undefined when NORD==0
         # should be zero...
-        if rep.body[:2]!='\0\0':
+        if rep.body[:2]!=b'\0\0':
             _log.warn("RSRV weirdness, first element of empty array is undefined")
-        self.assertEqual(rep.body[2:12], '\0'*10)
-        # should be self.assertEqual(rep.body[:12], '\0'*12)
+        self.assertEqual(rep.body[2:12], b'\0'*10)
+        # should be self.assertEqual(rep.body[:12], b'\0'*12)
 
         # Send Puts to trigger subscription updates
         self.sendTCP([
-            Msg(cmd=4, dtype=5, dcnt=2, p1=self.sid, p2=1101, body='\0\0\0\x2a\0\0\0\x2d'),
+            Msg(cmd=4, dtype=5, dcnt=2, p1=self.sid, p2=1101, body=b'\0\0\0\x2a\0\0\0\x2d'),
         ])
         rep = self.recvTCP()
         self.assertCAEqual(rep, cmd=1, dtype=5, dcnt=3, p1=1, p2=ioid)
-        self.assertEqual(rep.body[:12], '\0\0\0\x2a\0\0\0\x2d\0\0\0\0')
+        self.assertEqual(rep.body[:12], b'\0\0\0\x2a\0\0\0\x2d\0\0\0\0')
 
         self.sendTCP([
-            Msg(cmd=4, dtype=1, dcnt=4, p1=self.sid, p2=1101, body='\0\x2b\0\x2c\0\x2d\0\x2e'),
+            Msg(cmd=4, dtype=1, dcnt=4, p1=self.sid, p2=1101, body=b'\0\x2b\0\x2c\0\x2d\0\x2e'),
         ])
         rep = self.recvTCP()
         self.assertCAEqual(rep, cmd=1, dtype=5, dcnt=3, p1=1, p2=ioid)
-        self.assertEqual(rep.body[:12], '\0\0\0\x2b\0\0\0\x2c\0\0\0\x2d')
+        self.assertEqual(rep.body[:12], b'\0\0\0\x2b\0\0\0\x2c\0\0\0\x2d')
 
         self.sendTCP([
-            Msg(cmd=4, dtype=1, dcnt=1, p1=self.sid, p2=1101, body='\0\x2c'),
+            Msg(cmd=4, dtype=1, dcnt=1, p1=self.sid, p2=1101, body=b'\0\x2c'),
         ])
         rep = self.recvTCP()
         self.assertCAEqual(rep, cmd=1, dtype=5, dcnt=3, p1=1, p2=ioid)
-        self.assertEqual(rep.body[:12], '\0\0\0\x2c' + '\0'*8)
+        self.assertEqual(rep.body[:12], b'\0\0\0\x2c' + b'\0'*8)
 
         # cancel subscription
         self.sendTCP([
@@ -423,7 +423,7 @@ class TestArray(TestClient, unittest.TestCase):
 
         # Send a Put to trigger a subscription update
         self.sendTCP([
-            Msg(cmd=4, dtype=5, dcnt=2, p1=self.sid, p2=1101, body='\0\0\0\x2a\0\0\0\x2d'),
+            Msg(cmd=4, dtype=5, dcnt=2, p1=self.sid, p2=1101, body=b'\0\0\0\x2a\0\0\0\x2d'),
         ])
         rep = self.recvTCP()
         # Note P1 in reply is a CA status code (1==ok)
@@ -437,11 +437,11 @@ class TestArray(TestClient, unittest.TestCase):
             pass
         else:
             self.fail("No match %s"%rep)
-        self.assertEqual(rep.body[:8], '\0\0\0\x2a\0\0\0\x2d')
+        self.assertEqual(rep.body[:8], b'\0\0\0\x2a\0\0\0\x2d')
 
         # Send a Put to trigger a subscription update
         self.sendTCP([
-            Msg(cmd=4, dtype=1, dcnt=4, p1=self.sid, p2=1101, body='\0\x2b\0\x2c\0\x2d\0\x2e'),
+            Msg(cmd=4, dtype=1, dcnt=4, p1=self.sid, p2=1101, body=b'\0\x2b\0\x2c\0\x2d\0\x2e'),
         ])
         rep = self.recvTCP()
         # Note P1 in reply is a CA status code (1==ok)
@@ -455,11 +455,11 @@ class TestArray(TestClient, unittest.TestCase):
             pass
         else:
             self.fail("No match %s"%rep)
-        self.assertEqual(rep.body[:16], '\0\0\0\x2b\0\0\0\x2c\0\0\0\x2d\0\0\0\x2e')
+        self.assertEqual(rep.body[:16], b'\0\0\0\x2b\0\0\0\x2c\0\0\0\x2d\0\0\0\x2e')
 
         # Send a Put to trigger a subscription update
         self.sendTCP([
-            Msg(cmd=4, dtype=1, dcnt=1, p1=self.sid, p2=1101, body='\0\x2c'),
+            Msg(cmd=4, dtype=1, dcnt=1, p1=self.sid, p2=1101, body=b'\0\x2c'),
         ])
         rep = self.recvTCP()
         # Note P1 in reply is a CA status code (1==ok)
@@ -473,7 +473,7 @@ class TestArray(TestClient, unittest.TestCase):
             pass
         else:
             self.fail("No match %s"%rep)
-        self.assertEqual(rep.body[:4], '\0\0\0\x2c')
+        self.assertEqual(rep.body[:4], b'\0\0\0\x2c')
 
         # cancel subscription
         self.sendTCP([

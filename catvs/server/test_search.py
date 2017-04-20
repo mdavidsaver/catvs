@@ -20,7 +20,7 @@ class TestSearchUDP(TestClient, unittest.TestCase):
         searchid = 0x12345678
         self.sendUDP([
             Msg(cmd=0, dcnt=13),
-            Msg(cmd=6, body='ival', dtype=5, dcnt=13, p1=searchid, p2=searchid),
+            Msg(cmd=6, body=b'ival', dtype=5, dcnt=13, p1=searchid, p2=searchid),
         ])
 
         rep = self.recvUDP()
@@ -40,7 +40,7 @@ class TestSearchUDP(TestClient, unittest.TestCase):
         searchid = 0x12345678
         self.sendUDP([
             Msg(cmd=0, dcnt=13),
-            Msg(cmd=6, body='invalid', dtype=5, dcnt=13, p1=searchid, p2=searchid),
+            Msg(cmd=6, body=b'invalid', dtype=5, dcnt=13, p1=searchid, p2=searchid),
         ])
 
         self.assertRaises(socket.timeout, self.recvUDP)
@@ -52,7 +52,7 @@ class TestSearchUDP(TestClient, unittest.TestCase):
         searchid = 0x12345678
         self.sendUDP([
             Msg(cmd=0, dcnt=13),
-            Msg(cmd=6, body='invalid', dtype=10, dcnt=13, p1=searchid, p2=searchid),
+            Msg(cmd=6, body=b'invalid', dtype=10, dcnt=13, p1=searchid, p2=searchid),
         ])
 
         self.assertRaises(socket.timeout, self.recvUDP)
@@ -76,7 +76,7 @@ class TestSearchTCP(TestClient, unittest.TestCase):
             self.skipTest("Server doesn't support TCP lookup")
 
         self.sendTCP([
-            Msg(cmd=6, body='ival', dtype=5, dcnt=13, p1=searchid, p2=searchid),
+            Msg(cmd=6, body=b'ival', dtype=5, dcnt=13, p1=searchid, p2=searchid),
         ])
 
         rep = self.recvTCP()
@@ -109,7 +109,7 @@ class TestSearchTCP(TestClient, unittest.TestCase):
             self.skipTest("Server doesn't support TCP lookup")
 
         self.sendTCP([
-            Msg(cmd=6, body='invalid', dtype=5, dcnt=rep.dcnt, p1=searchid, p2=searchid),
+            Msg(cmd=6, body=b'invalid', dtype=5, dcnt=rep.dcnt, p1=searchid, p2=searchid),
         ])
 
         self.assertRaises(socket.timeout, self.recvTCP)
@@ -132,7 +132,7 @@ class TestSearchTCP(TestClient, unittest.TestCase):
             self.skipTest("Server doesn't support TCP lookup")
 
         self.sendTCP([
-            Msg(cmd=6, body='invalid', dtype=10, dcnt=13, p1=searchid, p2=searchid),
+            Msg(cmd=6, body=b'invalid', dtype=10, dcnt=13, p1=searchid, p2=searchid),
         ])
 
         rep = self.recvTCP()
@@ -150,7 +150,7 @@ class TestSearchTCP(TestClient, unittest.TestCase):
         searchid = 0x12345678
         self.sendTCP([
             Msg(cmd=0, dcnt=11),
-            Msg(cmd=6, body='ival', dtype=5, dcnt=11, p1=searchid, p2=searchid),
+            Msg(cmd=6, body=b'ival', dtype=5, dcnt=11, p1=searchid, p2=searchid),
         ])
 
         rep = self.recvTCP()
@@ -161,7 +161,7 @@ class TestSearchTCP(TestClient, unittest.TestCase):
             self.skipTest("Server doesn't support TCP lookup")
 
         self.sendTCP([
-            Msg(cmd=6, body='ival', dtype=5, dcnt=13, p1=searchid, p2=searchid),
+            Msg(cmd=6, body=b'ival', dtype=5, dcnt=13, p1=searchid, p2=searchid),
         ])
 
         rep = self.recvTCP()
