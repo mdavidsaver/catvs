@@ -34,9 +34,12 @@ class TestScalar(TestClient, unittest.TestCase):
         self.assertCAEqual(rep, cmd=18, dtype=5, dcnt=1, p1=self.cid)
         self.sid = rep.p2
 
+        self.live = True
         self.addCleanup(self._closeChan)
 
     def _closeChan(self):
+        if not self.live:
+            return
         self.sendTCP([
             Msg(cmd=12, p1=self.sid, p2=self.cid),
         ])
@@ -80,7 +83,21 @@ class TestScalar(TestClient, unittest.TestCase):
 
         self.assertEqual(unpack('!f',rep.body[:4]), (float(0x2a),))
 
+    def test_get_bad(self):
+        'Get out of range DBR'
+        self.openChan()
+        ioid = 1102
+
+        self.sendTCP([
+            Msg(cmd=15, dtype=0xefef, dcnt=1, p1=self.sid, p2=ioid),
+        ])
+
+        rep = self.recvTCP()
+        self.assertIsNone(rep)
+        self.live = False
+
     def test_put(self):
+        'Put w/o reply'
         self.openChan()
         ioid = 1102
         self.sendTCP([
@@ -94,7 +111,23 @@ class TestScalar(TestClient, unittest.TestCase):
 
         self.assertEqual(unpack('!i',rep.body[:4]), (0x2b,))
 
+    def test_put_bad(self):
+        'Put w/o reply w/ bad DBR'
+        self.openChan()
+        ioid = 1102
+        self.sendTCP([
+            Msg(cmd=4, dtype=0xefef, dcnt=1, p1=self.sid, p2=1101, body='\0\0\0\x2b'),
+        ])
+
+        rep = self.recvTCP()
+        if rep is None:
+            # RSRV queues an error, then closes the connection before send()ing...
+            self.live = False
+        else:
+            self.assertCAEqual(rep, cmd=11, dtype=0, dcnt=0, p1=self.cid, p2=0x72) # ECA_BADTYPE
+
     def test_put_callback(self):
+        'Put w/ reply'
         self.openChan()
         self.sendTCP([
             Msg(cmd=19, dtype=5, dcnt=1, p1=self.sid, p2=1101, body='\0\0\0\x2c'),
@@ -112,6 +145,20 @@ class TestScalar(TestClient, unittest.TestCase):
         self.assertCAEqual(rep, cmd=15, dtype=5, dcnt=1, p1=1, p2=1102)
 
         self.assertEqual(rep.body[:4], '\0\0\0\x2c')
+
+    def test_put_callback_bad(self):
+        'Put w/ reply w/ bad DBR'
+        self.openChan()
+        self.sendTCP([
+            Msg(cmd=19, dtype=0xefef, dcnt=1, p1=self.sid, p2=1101, body='\0\0\0\x2c'),
+        ])
+
+        rep = self.recvTCP()
+        if rep is None:
+            # RSRV queues an error, then closes the connection before send()ing...
+            self.live = False
+        else:
+            self.assertCAEqual(rep, cmd=19, dtype=0xefef, dcnt=1, p1=0x72, p2=1101, body='') # ECA_BADTYPE
 
     def test_monitor(self):
         self.openChan()
