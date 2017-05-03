@@ -9,7 +9,6 @@ env:
  - REPO=epics-base BRANCH=3.15
  - REPO=epics-base BRANCH=3.16
  - REPO=mdavidsaver BRANCH=integration
- - REPO=mdavidsaver BRANCH=camodern
 cache:
   directories:
    - $HOME/.cache
