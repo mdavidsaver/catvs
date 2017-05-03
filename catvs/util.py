@@ -187,19 +187,23 @@ class TestMixinUDP(object):
         while len(self.rxbuf)<N:
             B = self.sess.recv(1024)
             if len(B)==0:
-                break
+                return False
             self.rxbuf = self.rxbuf+B
+        return True
 
     def recvTCP(self):
         'Recieve a single CA message from the TCP client'
         assert self.sess is not None
-        self.ensureTCP(Msg._head.size)
+        if not self.ensureTCP(Msg._head.size):
+            _log.debug("tcp --> Closed")
+            return None
         pkt, self.rxbuf = Msg.unpack(self.rxbuf)
         if pkt.size==0xffff or pkt.dcnt==0xffff:
             self.ensureTCP(Msg._head_ext.size)
             pkt.size, pkt.dcnt = Msg._head_ext.unpack(self.rxbuf[:Msg._head_ext.size])
             self.rxbuf = self.rxbuf[Msg._head_ext.size:]
-        self.ensureTCP(pkt.size)
+        if not self.ensureTCP(pkt.size):
+            raise RuntimeError("Truncated message %s"%pkt)
         pkt.body, self.rxbuf = self.rxbuf[:pkt.size], self.rxbuf[pkt.size:]
         _log.debug("tcp --> %s", pkt)
         return pkt
