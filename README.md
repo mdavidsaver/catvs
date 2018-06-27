@@ -31,7 +31,7 @@ SOFTIOC=/usr/bin/softIoc DUT=$PWD/wrapioc.sh python -m unittest discover catvs.s
 ### Run test against standalone server (e.g in debugger)
 
 ``
-TESTPORT=5064 DUT='sleep 20' python -m unittest catvs.server.test_ops.TestArray.test_monitor_zero_dynamic
+TESTPORT=5064 DUT= python -m unittest catvs.server.test_ops.TestArray.test_monitor_zero_dynamic
 ``
 
 **Then** start the test server within 2 seconds.

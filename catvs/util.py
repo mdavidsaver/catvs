@@ -273,14 +273,8 @@ class TestMixinRunServer(object):
     testport = None
     testname = None
     dut = None
-    def setUp(self):
-        if self.testport is None:
-            import random
-            if 'TESTPORT' in os.environ:
-                self.testport = int(os.environ['TESTPORT'])
-            else:
-                self.testport = random.randint(7890, 7899)
 
+    def _check_test_port(self):
         # lousy hack num. 1
         # check to see that the TCP port where we will run the server
         # is unused.
@@ -298,6 +292,14 @@ class TestMixinRunServer(object):
                 self.assertEqual(e.errno, errno.ECONNREFUSED)
                 break
 
+    def setUp(self):
+        if self.testport is None:
+            import random
+            if 'TESTPORT' in os.environ:
+                self.testport = int(os.environ['TESTPORT'])
+            else:
+                self.testport = random.randint(7890, 7899)
+
         env = os.environ.copy()
         env.update({
             'IOCSH_HISTEDIT_DISABLE':'YES',
@@ -311,8 +313,13 @@ class TestMixinRunServer(object):
             env['TEST_NAME'] = self.testname
 
         if self.dut is None:
-            self.dut = os.environ['DUT']
+            self.dut = os.environ.get('DUT', '')
 
+        if self.dut:
+            self._check_test_port()
+            self._spawn_dut(env)
+
+    def _spawn_dut(self, env):
         self.TDIR = TempDir()
         tdir = self.TDIR.dir
 
@@ -350,7 +357,7 @@ class TestMixinRunServer(object):
                 if e.errno!=errno.ECONNREFUSED:
                     raise
                 continue
-            except:
+            except Exception:
                 raise
         if ST is None:
             self.fail("timeout waiting for DUT to start TCP server")
