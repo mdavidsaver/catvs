@@ -303,7 +303,7 @@ class TestArray(TestClient, unittest.TestCase):
         elif rep.p1>>3==22: # PCAS does this
             pass
         else:
-            self.fail("No match %s", rep)
+            self.fail("No match %s" % rep)
         # RSRV returns a body w/ 8 bytes, not sure what this is?
 
     def test_get_zero_dynamic(self):
