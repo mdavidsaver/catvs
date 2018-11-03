@@ -8,6 +8,7 @@ env:
  - REPO=epics-base BRANCH=3.14
  - REPO=epics-base BRANCH=3.15
  - REPO=epics-base BRANCH=3.16
+ - REPO=epics-base BRANCH=7.0
  - REPO=mdavidsaver BRANCH=integration
 cache:
   directories:
